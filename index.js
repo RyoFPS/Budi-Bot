@@ -24,6 +24,7 @@ const CONFIG = {
   statsChannelId: process.env.STATS_CHANNEL_ID,
   statsUpdateInterval: 30 * 60 * 1000,
   changelogChannelId: process.env.CHANGELOG_CHANNEL_ID,
+  rulesChannelId: process.env.RULES_CHANNEL_ID,
   ownerRoleId: process.env.OWNER_ROLE_ID,
   adminRoleId: process.env.ADMIN_ROLE_ID,
 };
@@ -149,6 +150,152 @@ async function updateStats() {
   }
 }
 
+// ========== HELPER: SEND RULES ==========
+async function sendRules(channel) {
+  // Header embed
+  const headerEmbed = new EmbedBuilder()
+    .setTitle('📜 SERVER RULES / PERATURAN SERVER')
+    .setDescription(
+      '🇬🇧 **English** • 🇮🇩 **Bahasa Indonesia**\n\n' +
+      'Please read and follow all the rules below to maintain a safe and enjoyable community for everyone.\n' +
+      '*Harap baca dan patuhi semua peraturan di bawah ini demi menjaga komunitas yang aman dan nyaman untuk semua.*\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+    )
+    .setColor(0xf1c40f)
+    .setThumbnail(channel.guild.iconURL({ dynamic: true, size: 256 }));
+
+  // Rule embeds - split into groups for readability
+  const rulesEmbed1 = new EmbedBuilder()
+    .setColor(0x3498db)
+    .addFields(
+      {
+        name: '1️⃣ Respect All Members\n*Hormati Semua Member*',
+        value:
+          '🇬🇧 Do not insult, belittle, harass, or provoke unnecessary conflicts with other members. Treat everyone with kindness and respect.\n' +
+          '🇮🇩 *Dilarang menghina, merendahkan, melakukan harassment, atau memancing konflik yang tidak perlu. Perlakukan semua orang dengan baik dan hormat.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '2️⃣ No Spam / Flood\n*Dilarang Spam / Flood*',
+        value:
+          '🇬🇧 Do not spam messages, emojis, mentions, or send repetitive/meaningless content that disrupts conversations.\n' +
+          '🇮🇩 *Dilarang spam pesan, emoji, mention, atau mengirim konten berulang/tidak bermakna yang mengganggu percakapan.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '3️⃣ No NSFW / Illegal Content\n*Dilarang Konten NSFW / Ilegal*',
+        value:
+          '🇬🇧 Pornographic material, excessive gore, or any form of illegal content is strictly prohibited across all channels.\n' +
+          '🇮🇩 *Konten pornografi, gore berlebihan, atau segala bentuk konten ilegal dilarang keras di semua channel.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '4️⃣ No Hate Speech\n*Dilarang Ujaran Kebencian*',
+        value:
+          '🇬🇧 Any form of discrimination or hate speech targeting race, ethnicity, religion, gender, sexual orientation, or other sensitive topics is prohibited.\n' +
+          '🇮🇩 *Segala bentuk diskriminasi atau ujaran kebencian yang menyasar ras, suku, agama, gender, orientasi seksual, atau topik sensitif lainnya dilarang.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '5️⃣ No Scam / Phishing / Malware\n*Dilarang Scam / Phishing / Malware*',
+        value:
+          '🇬🇧 Sharing scam links, phishing attempts, malware, or any activity intended to harm or deceive other members is strictly forbidden.\n' +
+          '🇮🇩 *Dilarang membagikan link scam, phishing, malware, atau aktivitas apa pun yang bertujuan merugikan atau menipu member lain.*',
+      },
+    );
+
+  const rulesEmbed2 = new EmbedBuilder()
+    .setColor(0x3498db)
+    .addFields(
+      {
+        name: '6️⃣ Use Channels Appropriately\n*Gunakan Channel Sesuai Fungsinya*',
+        value:
+          '🇬🇧 Please use each channel according to its designated topic. This keeps the server organized and comfortable for everyone.\n' +
+          '🇮🇩 *Gunakan setiap channel sesuai topik yang telah ditentukan. Ini menjaga server tetap rapi dan nyaman untuk semua.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '7️⃣ No Advertising Without Permission\n*Dilarang Promosi Tanpa Izin*',
+        value:
+          '🇬🇧 Promoting other servers, products, social media, or external communities without prior staff approval is not allowed.\n' +
+          '🇮🇩 *Promosi server lain, produk, media sosial, atau komunitas eksternal tanpa persetujuan staff tidak diperbolehkan.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '8️⃣ Respect Privacy\n*Jaga Privasi*',
+        value:
+          '🇬🇧 Do not share personal information — whether your own or others\' — without explicit consent. This includes real names, addresses, photos, and other private data.\n' +
+          '🇮🇩 *Dilarang menyebarkan informasi pribadi — baik milik sendiri maupun orang lain — tanpa persetujuan yang jelas. Termasuk nama asli, alamat, foto, dan data pribadi lainnya.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '9️⃣ Follow Staff Instructions\n*Ikuti Arahan Staff*',
+        value:
+          '🇬🇧 Decisions and instructions from the Owner and Administrators must be respected, as long as they are in accordance with the server rules.\n' +
+          '🇮🇩 *Keputusan dan arahan dari Owner serta Administrator wajib dihormati, selama sesuai dengan peraturan server.*',
+      },
+      {
+        name: '\u200b',
+        value: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      },
+      {
+        name: '🔟 Use Common Sense\n*Gunakan Akal Sehat*',
+        value:
+          '🇬🇧 If something feels disruptive, harmful, or damaging to the community\'s well-being — don\'t do it. When in doubt, ask a staff member.\n' +
+          '🇮🇩 *Jika sesuatu terasa mengganggu, merugikan, atau merusak kenyamanan komunitas — jangan dilakukan. Jika ragu, tanyakan kepada staff.*',
+      },
+    );
+
+  // Enforcement / footer embed
+  const enforcementEmbed = new EmbedBuilder()
+    .setTitle('⚖️ Enforcement / Penegakan Aturan')
+    .setDescription(
+      'Violations may result in the following actions:\n' +
+      '*Pelanggaran dapat mengakibatkan tindakan berikut:*\n\n' +
+      '```\n' +
+      '⚠️  Warning        →  Peringatan\n' +
+      '⏰  Timeout        →  Pembatasan sementara\n' +
+      '👢  Kick           →  Dikeluarkan dari server\n' +
+      '🔨  Ban            →  Diblokir permanen\n' +
+      '```\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      '🇬🇧 By joining this server, you acknowledge that you have read, understood, and agreed to abide by all the rules listed above.\n\n' +
+      '🇮🇩 *Dengan bergabung di server ini, kamu dianggap telah membaca, memahami, dan menyetujui untuk mematuhi semua peraturan yang tercantum di atas.*\n\n' +
+      '**Thank you for helping us build a great community! 🙏**\n' +
+      '***Terima kasih telah membantu kami membangun komunitas yang hebat!***'
+    )
+    .setColor(0xe74c3c)
+    .setFooter({ text: 'Last updated' })
+    .setTimestamp();
+
+  // Send all embeds in order
+  await channel.send({ embeds: [headerEmbed] });
+  await channel.send({ embeds: [rulesEmbed1] });
+  await channel.send({ embeds: [rulesEmbed2] });
+  await channel.send({ embeds: [enforcementEmbed] });
+}
+
 // ========== BOT READY ==========
 client.once('clientReady', async () => {
   console.log(`✅ Bot is online as ${client.user.tag}`);
@@ -184,6 +331,33 @@ client.once('clientReady', async () => {
   } catch (error) {
     console.error('❌ Error setting up verification:', error.message);
     console.error('💡 Make sure the bot has "Send Messages", "Embed Links", and "Add Reactions" permissions in the verification channel.');
+  }
+
+  // ---------- Rules Message ----------
+  try {
+    const rulesChannel = client.channels.cache.get(CONFIG.rulesChannelId);
+    if (!rulesChannel) {
+      console.error('❌ Rules channel not found! Check your channel ID.');
+    } else {
+      // Check if bot already sent rules (look for the header embed)
+      const rulesMessages = await rulesChannel.messages.fetch({ limit: 10 });
+      const existingRules = rulesMessages.find(
+        (msg) =>
+          msg.author.id === client.user.id &&
+          msg.embeds.length > 0 &&
+          msg.embeds[0].title === '📜 SERVER RULES / PERATURAN SERVER'
+      );
+
+      if (!existingRules) {
+        await sendRules(rulesChannel);
+        console.log('📜 Rules messages sent!');
+      } else {
+        console.log('📜 Rules messages already exist.');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error setting up rules:', error.message);
+    console.error('💡 Make sure the bot has "Send Messages" and "Embed Links" permissions in the rules channel.');
   }
 
   // ---------- Server Statistics ----------
