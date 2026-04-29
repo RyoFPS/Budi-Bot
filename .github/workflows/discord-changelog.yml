@@ -1,0 +1,98 @@
+name: 📝 Discord Changelog Notification
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📝 Send Changelog to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          # Get commit info
+          COMMIT_SHA="${{ github.sha }}"
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          REPO_NAME="${{ github.repository }}"
+          BRANCH="${{ github.ref_name }}"
+          AUTHOR="${{ github.actor }}"
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+          REPO_URL="https://github.com/${{ github.repository }}"
+          COMPARE_URL="${{ github.event.compare }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Get all commit messages from this push
+          # Format each commit as a bullet point
+          COMMITS=""
+          COMMIT_COUNT=0
+
+          # Loop through commits in the push event
+          while IFS= read -r line; do
+            if [ -n "$line" ]; then
+              COMMITS="${COMMITS}• \`${line:0:7}\` ${line:8}\\n"
+              COMMIT_COUNT=$((COMMIT_COUNT + 1))
+            fi
+          done <<< "$(git log --format='%h %s' ${{ github.event.before }}..${{ github.sha }} 2>/dev/null || git log --format='%h %s' -1)"
+
+          # If no commits found, use the current commit
+          if [ -z "$COMMITS" ]; then
+            MSG=$(git log --format='%s' -1)
+            COMMITS="• \`${SHORT_SHA}\` ${MSG}\\n"
+            COMMIT_COUNT=1
+          fi
+
+          # Determine update type based on commit messages
+          ALL_MSGS=$(git log --format='%s' ${{ github.event.before }}..${{ github.sha }} 2>/dev/null || git log --format='%s' -1)
+
+          if echo "$ALL_MSGS" | grep -qi "fix\|bug\|patch\|hotfix"; then
+            TYPE_EMOJI="🐛"
+            TYPE_LABEL="Bug Fix"
+            COLOR=15105570
+          elif echo "$ALL_MSGS" | grep -qi "feat\|add\|new\|implement"; then
+            TYPE_EMOJI="🚀"
+            TYPE_LABEL="New Feature"
+            COLOR=3066993
+          elif echo "$ALL_MSGS" | grep -qi "refactor\|clean\|maintain\|chore\|update dep"; then
+            TYPE_EMOJI="🔧"
+            TYPE_LABEL="Maintenance"
+            COLOR=3447003
+          else
+            TYPE_EMOJI="📢"
+            TYPE_LABEL="Update"
+            COLOR=10181046
+          fi
+
+          # Escape special characters for JSON
+          COMMITS_ESCAPED=$(echo -e "$COMMITS" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+
+          # Build the Discord webhook payload
+          PAYLOAD=$(cat <<EOF
+          {
+            "embeds": [
+              {
+                "title": "${TYPE_EMOJI} New Code Update — ${REPO_NAME}",
+                "description": "**Branch:** \`${BRANCH}\`\n**Type:** ${TYPE_EMOJI} ${TYPE_LABEL}\n**Commits:** \`${COMMIT_COUNT}\`\n\n**📋 Changes:**\n${COMMITS_ESCAPED}\n\n[View Full Diff](${COMPARE_URL}) • [View Repository](${REPO_URL})",
+                "color": ${COLOR},
+                "footer": {
+                  "text": "Pushed by ${AUTHOR} • via GitHub Actions"
+                },
+                "timestamp": "${TIMESTAMP}"
+              }
+            ]
+          }
+          EOF
+          )
+
+          # Send to Discord
+          curl -H "Content-Type: application/json" \
+               -d "$PAYLOAD" \
+               "$DISCORD_WEBHOOK_URL"
+
+          echo "✅ Changelog sent to Discord!"
