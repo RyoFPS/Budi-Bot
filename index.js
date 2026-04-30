@@ -471,7 +471,10 @@ client.on('guildMemberAdd', async (member) => {
   // ---------- Invite Tracking ----------
   try {
     const inviteTrackerChannel = client.channels.cache.get(CONFIG.inviteTrackerChannelId);
-    if (inviteTrackerChannel) {
+    if (!inviteTrackerChannel) {
+      console.error(`❌ Invite tracker channel not found! ID: ${CONFIG.inviteTrackerChannelId}`);
+      console.error('💡 Make sure the bot has "View Channel" permission in the invite tracker channel.');
+    } else {
       // Fetch current invites
       const newInvites = await member.guild.invites.fetch();
       
