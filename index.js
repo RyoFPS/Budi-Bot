@@ -9,6 +9,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildInvites,
   ],
   partials: [Partials.Message, Partials.Reaction, Partials.User, Partials.GuildMember],
 });
@@ -27,6 +28,7 @@ const CONFIG = {
   rulesChannelId: process.env.RULES_CHANNEL_ID,
   ownerRoleId: process.env.OWNER_ROLE_ID,
   adminRoleId: process.env.ADMIN_ROLE_ID,
+  inviteTrackerChannelId: process.env.INVITE_TRACKER_CHANNEL_ID,
 };
 
 // Stores the stats message ID so we can edit it instead of sending new ones
@@ -37,6 +39,9 @@ let statsInterval = null;
 
 // Mutex/lock to prevent concurrent stats updates
 let isUpdatingStats = false;
+
+// Invite cache for tracking who invited whom
+const inviteCache = new Map();
 
 // ========== HELPER: FORMAT DURATION ==========
 function formatDuration(ms) {
@@ -374,6 +379,21 @@ client.once('clientReady', async () => {
   }, CONFIG.statsUpdateInterval);
 
   console.log(`🔄 Stats auto-update set to every ${CONFIG.statsUpdateInterval / 60000} minutes.`);
+
+  // ---------- Invite Tracker: Cache Invites ----------
+  try {
+    const guild = client.guilds.cache.get(CONFIG.guildId);
+    if (guild) {
+      const invites = await guild.invites.fetch();
+      invites.forEach(invite => {
+        inviteCache.set(invite.code, invite.uses);
+      });
+      console.log(`📨 Cached ${inviteCache.size} invite(s) for invite tracking.`);
+    }
+  } catch (error) {
+    console.error('❌ Error caching invites:', error.message);
+    console.error('💡 Make sure the bot has "Manage Server" permission to track invites.');
+  }
 });
 
 // ========== REACTION ADD → GIVE ROLE ==========
@@ -447,6 +467,65 @@ client.on('messageReactionRemove', async (reaction, user) => {
 
 // ========== MEMBER JOIN → WELCOME MESSAGE ==========
 client.on('guildMemberAdd', async (member) => {
+  // ---------- Invite Tracking ----------
+  try {
+    const inviteTrackerChannel = client.channels.cache.get(CONFIG.inviteTrackerChannelId);
+    if (inviteTrackerChannel) {
+      const newInvites = await member.guild.invites.fetch();
+      
+      // Find the invite that was used (the one with increased uses)
+      const usedInvite = newInvites.find(inv => {
+        const cachedUses = inviteCache.get(inv.code) || 0;
+        return inv.uses > cachedUses;
+      });
+
+      // Update the cache with new invite data
+      newInvites.forEach(inv => {
+        inviteCache.set(inv.code, inv.uses);
+      });
+
+      if (usedInvite && usedInvite.inviter) {
+        const inviter = usedInvite.inviter;
+        const totalInvites = newInvites
+          .filter(inv => inv.inviter && inv.inviter.id === inviter.id)
+          .reduce((acc, inv) => acc + inv.uses, 0);
+
+        const inviteEmbed = new EmbedBuilder()
+          .setTitle('📨 Invite Tracker')
+          .setDescription(
+            `${member} was invited by ${inviter}\n\n` +
+            `📎 **Invite Code:** \`${usedInvite.code}\`\n` +
+            `📊 **${inviter.tag}** now has **${totalInvites}** invite${totalInvites !== 1 ? 's' : ''}`
+          )
+          .setColor(0x3498db)
+          .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+          .setFooter({ text: `${member.guild.name} • Invite Tracker`, iconURL: member.guild.iconURL({ dynamic: true }) })
+          .setTimestamp();
+
+        await inviteTrackerChannel.send({ embeds: [inviteEmbed] });
+        console.log(`📨 ${member.user.tag} was invited by ${inviter.tag} (code: ${usedInvite.code})`);
+      } else {
+        // Could not determine who invited (vanity URL, unknown, etc.)
+        const unknownEmbed = new EmbedBuilder()
+          .setTitle('📨 Invite Tracker')
+          .setDescription(
+            `${member} joined the server\n\n` +
+            `⚠️ Could not determine who invited this member.\n` +
+            `*(Possible: Vanity URL, Server Discovery, or expired invite)*`
+          )
+          .setColor(0x95a5a6)
+          .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+          .setFooter({ text: `${member.guild.name} • Invite Tracker`, iconURL: member.guild.iconURL({ dynamic: true }) })
+          .setTimestamp();
+
+        await inviteTrackerChannel.send({ embeds: [unknownEmbed] });
+        console.log(`📨 ${member.user.tag} joined but inviter could not be determined.`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error tracking invite:', error);
+  }
+
   // Send welcome embed
   const welcomeChannel = client.channels.cache.get(CONFIG.welcomeChannelId);
   if (!welcomeChannel) {
@@ -613,6 +692,18 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
   }
+});
+
+// ========== INVITE CREATE → UPDATE CACHE ==========
+client.on('inviteCreate', (invite) => {
+  inviteCache.set(invite.code, invite.uses);
+  console.log(`📨 Invite created: ${invite.code} by ${invite.inviter?.tag || 'Unknown'}`);
+});
+
+// ========== INVITE DELETE → REMOVE FROM CACHE ==========
+client.on('inviteDelete', (invite) => {
+  inviteCache.delete(invite.code);
+  console.log(`📨 Invite deleted: ${invite.code}`);
 });
 
 // ========== GLOBAL ERROR HANDLERS ==========
