@@ -13,12 +13,12 @@
 <br/>
 
 <img src="https://img.shields.io/badge/Status-Online-brightgreen?style=flat-square" alt="Status"/>
-<img src="https://img.shields.io/badge/Features-7-blueviolet?style=flat-square" alt="Features"/>
+<img src="https://img.shields.io/badge/Features-8-blueviolet?style=flat-square" alt="Features"/>
 <img src="https://img.shields.io/badge/Language-JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black" alt="Language"/>
 
 ---
 
-*Budi Assistant — Your all-in-one Discord server companion.*
+_Budi Assistant — Your all-in-one Discord server companion._
 
 </div>
 
@@ -32,6 +32,7 @@
 - [Environment Variables](#-environment-variables)
 - [Setup Instructions](#-setup-instructions)
 - [Production Deployment](#-production-deployment-pm2-on-ubuntu)
+- [Update Workflow](#-update-workflow)
 - [GitHub Actions Setup](#-github-actions-setup)
 - [Role Hierarchy](#-role-hierarchy)
 - [Bot Permissions & Intents](#-bot-permissions--intents)
@@ -43,17 +44,18 @@
 
 ## ✨ Features
 
-Budi Bot comes packed with **7 powerful features** designed to automate and enhance your Discord server experience.
+Budi Bot comes packed with **8 powerful features** designed to automate and enhance your Discord server experience.
 
-| # | Feature | Description |
-|:-:|---------|-------------|
-| 1 | [✅ Emoji Verification](#1--emoji-verification) | Reaction-based role assignment |
-| 2 | [🎉 Welcome Messages](#2--welcome-messages) | Greet new members with rich embeds |
-| 3 | [😢 Goodbye Messages](#3--goodbye-messages) | Farewell departing members |
-| 4 | [📊 Server Statistics](#4--server-statistics) | Auto-updating server stats dashboard |
-| 5 | [📜 Server Rules](#5--server-rules-bilingual) | Bilingual rules (EN + ID) |
-| 6 | [📝 /update Command](#6--update-slash-command) | Manual changelog posting |
-| 7 | [🔗 GitHub Auto Changelog](#7--github-auto-changelog) | Automated changelog via GitHub Actions |
+|  #  | Feature                                               | Description                            |
+| :-: | ----------------------------------------------------- | -------------------------------------- |
+|  1  | [✅ Emoji Verification](#1--emoji-verification)       | Reaction-based role assignment         |
+|  2  | [🎉 Welcome Messages](#2--welcome-messages)           | Greet new members with rich embeds     |
+|  3  | [😢 Goodbye Messages](#3--goodbye-messages)           | Farewell departing members             |
+|  4  | [📊 Server Statistics](#4--server-statistics)         | Auto-updating server stats dashboard   |
+|  5  | [📜 Server Rules](#5--server-rules-bilingual)         | Bilingual rules (EN + ID)              |
+|  6  | [📝 /update Command](#6--update-slash-command)        | Manual changelog posting               |
+|  7  | [🔗 GitHub Auto Changelog](#7--github-auto-changelog) | Automated changelog via GitHub Actions |
+|  8  | [📨 Invite Tracker](#8--invite-tracker)               | Track who invited whom                 |
 
 ---
 
@@ -147,6 +149,21 @@ Budi Bot comes packed with **7 powerful features** designed to automate and enha
 - 📝 Shows all commits as bullet points with short SHA
 - 🔗 Links to full diff and repository
 
+### 8. 📨 Invite Tracker
+
+> Know exactly who invited each new member.
+
+- Tracks which invite link was used when a member joins
+- Shows **who invited whom** with invite code and total invite count
+- Displays:
+  - 👤 New member info
+  - 📨 Who invited them (with mention)
+  - 🔗 Invite code used
+  - 📊 Inviter's total invite count
+- Handles edge cases: Vanity URLs, Server Discovery, expired invites
+- Posts to a dedicated `#invite-tracker` channel
+- Requires **Manage Server** permission
+
 ---
 
 ## 🚀 Quick Start
@@ -198,20 +215,21 @@ budi-bot/
 
 Create a `.env` file in the project root with the following variables:
 
-| Variable | Description |
-|----------|-------------|
-| `DISCORD_TOKEN` | Your bot token from the [Discord Developer Portal](https://discord.com/developers/applications) |
-| `GUILD_ID` | Your Discord server (guild) ID |
-| `APPLICATION_ID` | Your bot's application ID |
-| `VERIFICATION_CHANNEL_ID` | Channel ID for `#verification` |
-| `WELCOME_CHANNEL_ID` | Channel ID for `#welcome` |
-| `GOODBYE_CHANNEL_ID` | Channel ID for `#goodbye` |
-| `STATS_CHANNEL_ID` | Channel ID for `#stats` |
-| `CHANGELOG_CHANNEL_ID` | Channel ID for `#changelog` |
-| `RULES_CHANNEL_ID` | Channel ID for `#rules` |
-| `VERIFIED_ROLE_ID` | Role ID for the "Verified" role |
-| `OWNER_ROLE_ID` | Role ID for the "Owner" role |
-| `ADMIN_ROLE_ID` | Role ID for the "Admin" role |
+| Variable                    | Description                                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| `DISCORD_TOKEN`             | Your bot token from the [Discord Developer Portal](https://discord.com/developers/applications) |
+| `GUILD_ID`                  | Your Discord server (guild) ID                                                                  |
+| `APPLICATION_ID`            | Your bot's application ID                                                                       |
+| `VERIFICATION_CHANNEL_ID`   | Channel ID for `#verification`                                                                  |
+| `WELCOME_CHANNEL_ID`        | Channel ID for `#welcome`                                                                       |
+| `GOODBYE_CHANNEL_ID`        | Channel ID for `#goodbye`                                                                       |
+| `STATS_CHANNEL_ID`          | Channel ID for `#stats`                                                                         |
+| `CHANGELOG_CHANNEL_ID`      | Channel ID for `#changelog`                                                                     |
+| `RULES_CHANNEL_ID`          | Channel ID for `#rules`                                                                         |
+| `INVITE_TRACKER_CHANNEL_ID` | Channel ID for `#invite-tracker`                                                                |
+| `VERIFIED_ROLE_ID`          | Role ID for the "Verified" role                                                                 |
+| `OWNER_ROLE_ID`             | Role ID for the "Owner" role                                                                    |
+| `ADMIN_ROLE_ID`             | Role ID for the "Admin" role                                                                    |
 
 ```env
 DISCORD_TOKEN=your_bot_token
@@ -223,6 +241,7 @@ GOODBYE_CHANNEL_ID=channel_id
 STATS_CHANNEL_ID=channel_id
 CHANGELOG_CHANNEL_ID=channel_id
 RULES_CHANNEL_ID=channel_id
+INVITE_TRACKER_CHANNEL_ID=channel_id
 VERIFIED_ROLE_ID=role_id
 OWNER_ROLE_ID=role_id
 ADMIN_ROLE_ID=role_id
@@ -243,12 +262,14 @@ ADMIN_ROLE_ID=role_id
 ### Step-by-Step
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/your-username/budi-bot.git
    cd budi-bot
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
@@ -257,12 +278,14 @@ ADMIN_ROLE_ID=role_id
    - Create a `.env` file in the project root
    - Fill in all required variables (see [Environment Variables](#-environment-variables))
 
-4. **Register slash commands** *(one-time setup)*
+4. **Register slash commands** _(one-time setup)_
+
    ```bash
    node deploy-commands.js
    ```
 
 5. **Start the bot**
+
    ```bash
    node index.js
    ```
@@ -296,6 +319,26 @@ pm2 monit               # Monitor CPU/Memory usage
 
 ---
 
+## 🔄 Update Workflow
+
+When you make changes locally and want to deploy to your server:
+
+```bash
+# On your Windows PC — push changes
+git add .
+git commit -m "feat: your changes"
+git push
+
+# On your Ubuntu server — pull and restart
+cd ~/Budi-Bot
+git pull
+pm2 restart budi-bot
+```
+
+> ⚠️ **Important:** Never run `node index.js` directly while PM2 is running — this creates duplicate bot instances and messages will be sent twice!
+
+---
+
 ## ⚙️ GitHub Actions Setup
 
 Automate changelog posts to Discord on every push to `main`:
@@ -319,11 +362,11 @@ Automate changelog posts to Discord on every push to `main`:
 
 Budi Bot recognizes the following role structure:
 
-| Role | Emoji | Access Level | Permissions |
-|------|:-----:|:------------:|-------------|
-| **Owner** | 👑 | Full Access | All features + `/update` command |
-| **Admin** | 🛡️ | Full Access (2nd) | All features + `/update` command |
-| **Member** | 👤 | Limited | Basic server access |
+| Role       | Emoji |   Access Level    | Permissions                      |
+| ---------- | :---: | :---------------: | -------------------------------- |
+| **Owner**  |  👑   |    Full Access    | All features + `/update` command |
+| **Admin**  |  🛡️   | Full Access (2nd) | All features + `/update` command |
+| **Member** |  👤   |      Limited      | Basic server access              |
 
 > 📌 The `/update` slash command is restricted to users with the **Owner** or **Admin** role.
 
@@ -335,29 +378,31 @@ Budi Bot recognizes the following role structure:
 
 Ensure your bot has the following permissions in your Discord server:
 
-| Permission | Purpose |
-|------------|---------|
-| `Manage Roles` | Assign/remove Verified role |
-| `Send Messages` | Send embeds and messages |
-| `Embed Links` | Display rich embeds |
-| `Manage Messages` | Edit stats message |
-| `Read Message History` | Read existing messages |
-| `Add Reactions` | Add verification reaction |
-| `Use External Emojis` | Support custom emojis |
-| `View Channels` | Access required channels |
+| Permission             | Purpose                        |
+| ---------------------- | ------------------------------ |
+| `Manage Roles`         | Assign/remove Verified role    |
+| `Send Messages`        | Send embeds and messages       |
+| `Embed Links`          | Display rich embeds            |
+| `Manage Messages`      | Edit stats message             |
+| `Read Message History` | Read existing messages         |
+| `Add Reactions`        | Add verification reaction      |
+| `Use External Emojis`  | Support custom emojis          |
+| `View Channels`        | Access required channels       |
+| `Manage Server`        | Fetch invite data for tracking |
 
 ### Required Gateway Intents
 
 Enable these intents in the [Discord Developer Portal](https://discord.com/developers/applications) under **Bot → Privileged Gateway Intents**:
 
-| Intent | Purpose |
-|--------|---------|
-| `Guilds` | Access guild data |
-| `GuildMembers` | Track member join/leave *(privileged)* |
-| `GuildMessages` | Read messages in channels |
-| `GuildMessageReactions` | Detect verification reactions |
-| `MessageContent` | Read message content *(privileged)* |
-| `GuildPresences` | Track online status *(privileged)* |
+| Intent                  | Purpose                                |
+| ----------------------- | -------------------------------------- |
+| `Guilds`                | Access guild data                      |
+| `GuildMembers`          | Track member join/leave _(privileged)_ |
+| `GuildMessages`         | Read messages in channels              |
+| `GuildMessageReactions` | Detect verification reactions          |
+| `MessageContent`        | Read message content _(privileged)_    |
+| `GuildPresences`        | Track online status _(privileged)_     |
+| `GuildInvites`          | Track invite create/delete/use         |
 
 > ⚠️ **Privileged intents** must be manually enabled in the Developer Portal.
 
@@ -365,13 +410,13 @@ Enable these intents in the [Discord Developer Portal](https://discord.com/devel
 
 ## 🧰 Tech Stack
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| [Node.js](https://nodejs.org/) | v16.9.0+ | JavaScript runtime |
-| [discord.js](https://discord.js.org/) | v14.26.3 | Discord API library |
-| [dotenv](https://www.npmjs.com/package/dotenv) | v17.4.2 | Environment variable management |
-| [PM2](https://pm2.keymetrics.io/) | Latest | Production process manager |
-| [GitHub Actions](https://github.com/features/actions) | — | CI/CD pipeline |
+| Technology                                            | Version  | Purpose                         |
+| ----------------------------------------------------- | -------- | ------------------------------- |
+| [Node.js](https://nodejs.org/)                        | v16.9.0+ | JavaScript runtime              |
+| [discord.js](https://discord.js.org/)                 | v14.26.3 | Discord API library             |
+| [dotenv](https://www.npmjs.com/package/dotenv)        | v17.4.2  | Environment variable management |
+| [PM2](https://pm2.keymetrics.io/)                     | Latest   | Production process manager      |
+| [GitHub Actions](https://github.com/features/actions) | —        | CI/CD pipeline                  |
 
 ---
 
@@ -398,14 +443,14 @@ Contributions are welcome! Here's how you can help:
 
 This project follows [Conventional Commits](https://www.conventionalcommits.org/):
 
-| Prefix | Description |
-|--------|-------------|
-| `feat:` | New feature |
-| `fix:` | Bug fix |
-| `docs:` | Documentation changes |
-| `chore:` | Maintenance tasks |
-| `refactor:` | Code refactoring |
-| `style:` | Code style changes |
+| Prefix      | Description           |
+| ----------- | --------------------- |
+| `feat:`     | New feature           |
+| `fix:`      | Bug fix               |
+| `docs:`     | Documentation changes |
+| `chore:`    | Maintenance tasks     |
+| `refactor:` | Code refactoring      |
+| `style:`    | Code style changes    |
 
 ---
 
