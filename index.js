@@ -385,6 +385,7 @@ client.once('clientReady', async () => {
     const guild = client.guilds.cache.get(CONFIG.guildId);
     if (guild) {
       const invites = await guild.invites.fetch();
+      inviteCache.clear(); // Clear stale data
       invites.forEach(invite => {
         inviteCache.set(invite.code, invite.uses);
       });
@@ -471,15 +472,30 @@ client.on('guildMemberAdd', async (member) => {
   try {
     const inviteTrackerChannel = client.channels.cache.get(CONFIG.inviteTrackerChannelId);
     if (inviteTrackerChannel) {
+      // Fetch current invites
       const newInvites = await member.guild.invites.fetch();
       
-      // Find the invite that was used (the one with increased uses)
-      const usedInvite = newInvites.find(inv => {
-        const cachedUses = inviteCache.get(inv.code) || 0;
-        return inv.uses > cachedUses;
-      });
+      // Find the invite that was used by comparing with cache
+      let usedInvite = null;
 
-      // Update the cache with new invite data
+      for (const [code, invite] of newInvites) {
+        const cachedUses = inviteCache.get(code);
+        
+        if (cachedUses === undefined) {
+          // New invite not in cache — if it has 1 use, it was likely just used
+          if (invite.uses === 1) {
+            usedInvite = invite;
+            break;
+          }
+        } else if (invite.uses > cachedUses) {
+          // Existing invite with increased uses
+          usedInvite = invite;
+          break;
+        }
+      }
+
+      // Sync cache with latest invite data
+      inviteCache.clear();
       newInvites.forEach(inv => {
         inviteCache.set(inv.code, inv.uses);
       });
@@ -493,25 +509,30 @@ client.on('guildMemberAdd', async (member) => {
         const inviteEmbed = new EmbedBuilder()
           .setTitle('📨 Invite Tracker')
           .setDescription(
-            `${member} was invited by ${inviter}\n\n` +
+            `${member} was invited by **${inviter.tag}** (${inviter})\n\n` +
             `📎 **Invite Code:** \`${usedInvite.code}\`\n` +
-            `📊 **${inviter.tag}** now has **${totalInvites}** invite${totalInvites !== 1 ? 's' : ''}`
+            `📊 **${inviter.tag}** now has **${totalInvites}** total invite${totalInvites !== 1 ? 's' : ''}`
           )
           .setColor(0x3498db)
           .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+          .addFields(
+            { name: '👤 New Member', value: `${member.user.tag}`, inline: true },
+            { name: '📨 Invited By', value: `${inviter.tag}`, inline: true },
+            { name: '🔗 Code Used', value: `\`${usedInvite.code}\``, inline: true }
+          )
           .setFooter({ text: `${member.guild.name} • Invite Tracker`, iconURL: member.guild.iconURL({ dynamic: true }) })
           .setTimestamp();
 
         await inviteTrackerChannel.send({ embeds: [inviteEmbed] });
         console.log(`📨 ${member.user.tag} was invited by ${inviter.tag} (code: ${usedInvite.code})`);
       } else {
-        // Could not determine who invited (vanity URL, unknown, etc.)
+        // Could not determine who invited
         const unknownEmbed = new EmbedBuilder()
           .setTitle('📨 Invite Tracker')
           .setDescription(
-            `${member} joined the server\n\n` +
+            `${member} (${member.user.tag}) joined the server\n\n` +
             `⚠️ Could not determine who invited this member.\n` +
-            `*(Possible: Vanity URL, Server Discovery, or expired invite)*`
+            `*(Possible reasons: Vanity URL, Server Discovery, OAuth2 bot invite, or expired/deleted invite)*`
           )
           .setColor(0x95a5a6)
           .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
@@ -523,7 +544,7 @@ client.on('guildMemberAdd', async (member) => {
       }
     }
   } catch (error) {
-    console.error('❌ Error tracking invite:', error);
+    console.error('❌ Error tracking invite:', error.message);
   }
 
   // Send welcome embed
@@ -696,14 +717,18 @@ client.on('interactionCreate', async (interaction) => {
 
 // ========== INVITE CREATE → UPDATE CACHE ==========
 client.on('inviteCreate', (invite) => {
-  inviteCache.set(invite.code, invite.uses);
-  console.log(`📨 Invite created: ${invite.code} by ${invite.inviter?.tag || 'Unknown'}`);
+  if (invite.code) {
+    inviteCache.set(invite.code, invite.uses || 0);
+    console.log(`📨 Invite created: ${invite.code} by ${invite.inviter?.tag || 'Unknown'}`);
+  }
 });
 
 // ========== INVITE DELETE → REMOVE FROM CACHE ==========
 client.on('inviteDelete', (invite) => {
-  inviteCache.delete(invite.code);
-  console.log(`📨 Invite deleted: ${invite.code}`);
+  if (invite.code) {
+    inviteCache.delete(invite.code);
+    console.log(`📨 Invite deleted: ${invite.code}`);
+  }
 });
 
 // ========== GLOBAL ERROR HANDLERS ==========
